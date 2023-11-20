@@ -1,0 +1,501 @@
+---
+title: "Case Study 1: How Does a Bike-Share Navigate Speedy Success?"
+author: "Zarrief Sofea"
+date: "2023-11-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### *Scenario*
+
+You are a junior data analyst working in the marketing analyst team at Cyclistic, a bike-share company in Chicago. The director of marketing believes the company’s future success depends on maximizing the number of annual memberships. Therefore, your team wants to understand how casual riders and annual members use Cyclistic bikes differently. From these insights, your team will design a new marketing strategy to convert casual riders into annual members. But first, Cyclistic executives must approve your recommendations, so they must be backed up with compelling data insights and professional data visualizations.
+
+Cyclistic categorize it users into two categories:
+
+*  casual : Customer who purchase single ride or full-day passes.
+*  members: Customer who purchase annual membership.
+
+### *Business Question*
+
+Three questions will guide the future marketing program:
+
+* How do annual members and casual riders use Cyclistic bikes differently?
+* Why would casual riders buy Cyclistic annual memberships?
+* How can Cyclistic use digital media to influence casual riders to become members?
+
+### **Part 1: Load data**
+
+Setting up R envirnment 
+
+
+```{r cars}
+library(tidyverse)
+library(lubridate)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+```
+
+Import and merge all three CSV files into one data frame
+
+```{r}
+setwd("C:/Users/zarri/OneDrive/Documents/Coursera/Case1/raw_data")
+
+df1 <- list.files("C:/Users/zarri/OneDrive/Documents/Coursera/Case1/raw_data") %>% 
+  lapply(read_csv) %>% 
+  bind_rows
+```
+
+Preview dataset
+
+```{r}
+summary(df1)
+colnames(df1)
+head(df1)
+glimpse(df1)
+```
+### **Part 2: Data Cleaning**
+
+Checking typo in categorical col.
+
+```{r}
+unique(df1$rideable_type)
+unique(df1$member_casual)
+```
+
+Checking missing values
+
+```{r}
+emptyCells <- sapply(df1, function(x)
+  sum(is.na(x)))
+print(emptyCells)
+```
+
+Checking duplicate rows
+
+```{r}
+duplicates <- df1[duplicated(df1), ]
+
+duplicate_counts <- table(df1[duplicated(df1), ])
+
+duplicates
+
+duplicate_counts
+```
+
+Change datetimes col. types to format that we want.
+
+```{r}
+df1 <- df1 %>% 
+  mutate(started_at = as_datetime(started_at)) %>% 
+  mutate(ended_at = as_datetime(ended_at))
+```
+
+Now that we get our desired data types, we can just use subtraction to get ride duration
+
+Now create new. col named "ride_length" (subtraction operator method for <dttm> produces durations)
+
+```{r}
+df2 <- df1 %>%
+  mutate(ride_length = difftime(ended_at, started_at, units = "mins"))
+```
+
+Convert ride_length to numeric format
+
+```{r}
+df2$ride_length <-
+  as.numeric(as.character(df2$ride_length))
+is.numeric(df2$ride_length) #returns TRUE if ride_length is already numeric
+```
+
+Checking for the min and max value in ride_length column
+
+```{r}
+max(df2$ride_length)
+min(df2$ride_length) #since we got negative mins we must remove it
+```
+
+Removing bad ride_length data (ride length must be at least 1 min but not more than 24 hours or 1440 minutes.)
+
+```{r}
+df2 = df2 %>%
+  filter(between(ride_length, 1, 1440))
+bad_data <- nrow(df1) - nrow(df2)
+paste0("There are a total of ", bad_data , " bad data removed ")
+```
+
+Lastly create col named "hour_start", "month","day_of_week"
+
+```{r}
+df2$day_of_week <- weekdays(as.Date(df2$started_at))
+
+df2 <- df2 %>%
+  mutate(
+    hour_start = hour(started_at),
+    month = month(started_at, label = T, abbr = F),
+    day_of_week = wday(started_at, label = T, abbr = F))
+```
+
+Checking the cleaned data
+
+```{r}
+glimpse(df2)
+```
+
+
+### **Part 3: Analyze**
+
+**Calculating for the mean and median values of ride_length**
+
+```{r}
+mean_ridelength_member <-
+  mean(df2$ride_length[df2$member_casual == "member"], na.rm = TRUE)
+
+paste0("Members mean length of ride is ", mean_ridelength_member)
+
+mean_ridelength_casual <-
+  mean(df2$ride_length[df2$member_casual == "casual"], na.rm = TRUE)
+
+paste0("Casuals mean length of ride is ", mean_ridelength_casual)
+```
+
+**Find the overall median of ride length as well as among annual members & casual riders.**
+
+```{r}
+median_ridelength_member <-
+  median(df2$ride_length[df2$member_casual == "member"], na.rm = TRUE)
+
+paste0("Members median length of ride is ", median_ridelength_member)
+
+median_ridelength_casual <-
+  median(df2$ride_length[df2$member_casual == "casual"], na.rm = TRUE)
+
+paste0("Casuals median length of ride is ", median_ridelength_casual)
+```
+
+**Find the overall maximum of ride length as well as among annual members & casual riders**
+
+```{r}
+max_ridelength_member <-
+  max(df2$ride_length[df2$member_casual == "member"], na.rm = TRUE)
+
+paste0("Members max length of ride is ", max_ridelength_member)
+
+max_ridelength_casual <-
+  max(df2$ride_length[df2$member_casual == "casual"], na.rm = TRUE)
+
+paste0("Casuals max length of ride is ", max_ridelength_casual)
+```
+
+**Find the overall manimum of ride length as well as among annual members & casual riders**
+
+```{r}
+min_ridelength_member <-
+  min(df2$ride_length[df2$member_casual == "member"], na.rm = TRUE)
+
+paste0("Members min length of ride is ", min_ridelength_member)
+
+min_ridelength_casual <-
+  min(df2$ride_length[df2$member_casual == "casual"], na.rm = TRUE)
+
+paste0("Casuals min length of ride is ", min_ridelength_casual)
+```
+
+**Finding 1**
+
+Casual riders have greater mean and median ride lengths than annual members, while having similar minimum and maximum ride lengths.
+
+**Total number of rides among annual members and casual riders**
+
+```{r}
+customer_totalrides <- df2 %>%
+  group_by(member_casual) %>%
+  dplyr::summarise(number_of_rides = n())
+customer_totalrides
+```
+
+**Finding 2**
+
+Annual members have the highest number of rides compared to casual riders from January 2023 - June 2023
+
+**Most Popular Starting Hours among annual members and casual riders**
+
+```{r}
+peak_hour <-df2 %>%
+  group_by(member_casual, hour_start) %>%
+  dplyr::summarise(number_of_rides = n(), .groups = "drop") 
+peak_hour
+```
+
+**Finding 3**
+
+Most annual members and casual riders prefer to begin their rides between 4PM till 6PM, with the peak time for riding bikes being at 5PM.
+
+**Most Popular Day of the Week among annual members and casual riders**
+
+```{r}
+peak_day <-df2 %>%
+  group_by(member_casual, day_of_week) %>%
+  dplyr::summarise(number_of_rides = n(), .groups = "drop")
+peak_day
+
+peak_day_ridelength <-df2 %>%
+  group_by(member_casual, day_of_week) %>%
+  dplyr::summarise(mean_ridelength = mean(ride_length), .groups = "drop")
+peak_day_ridelength
+```
+
+**Finding 4 **
+
+1. Annual members have the most number of rides during Wednesdays and Thursdays, while casual riders have less and mostly prefer to ride bikes during weekends. 
+2. Casual riders have a significantly longer rides than annual members in all days of the week, with Sunday being the longest of the week.
+
+**Most Popular Month among annual members and casual riders**
+
+```{r}
+peak_month <-df2 %>%
+  group_by(member_casual, month) %>%
+  dplyr::summarise(number_of_rides = n(), .groups = "drop")
+peak_month
+
+peak_month_ridelength <-df2 %>%
+  group_by(member_casual, month) %>%
+  dplyr::summarise(mean_ride_length = mean(ride_length), .groups = "drop")
+peak_month_ridelength 
+```
+
+**Finding 5**
+
+1. The month of June records the highest number of rides for both type of membership
+2. The month of June record the longest rides of members while the month of May is the longest for casual riders
+
+
+### **Part 4: Data Vizualization**
+
+**Visualize the mean and median values of ride_length of between customer type**
+
+```{r}
+chart1 <-
+  df2 %>%
+  group_by(member_casual) %>%
+  dplyr::summarise(mean_ride_length = mean(ride_length),.groups = "drop") %>%
+  ggplot(aes(x = member_casual,
+             y = mean_ride_length,
+             fill = member_casual)) +
+  geom_col(width = 0.4, position = position_dodge(width = 0.5))+
+  ggtitle("Annual Members vs. Casual Riders\n Total Mean Ride Lengths (Minutes)")+
+   labs(subtitle = "From January 2023-June 2023",
+    x = "Types of Customer",
+    y = "Mean Length of Rides (Minutes)")
+  
+
+chart2 <-
+  df2 %>%
+  group_by(member_casual) %>%
+  dplyr::summarise(median_ride_length = median(ride_length),.groups = "drop") %>%
+  ggplot(aes(x = member_casual,
+             y = median_ride_length,
+             fill = member_casual)) +
+  geom_col(width = 0.4, position = position_dodge(width = 0.5))+
+  ggtitle("Annual Members vs. Casual Riders\n Total Median Ride Lengths (Minutes)")+
+     labs(subtitle = "From January 2023-June 2023",
+    x = "Types of Customer",
+    y = "Median Length of Rides (Minutes)")
+
+
+
+chart1 + chart2
+```
+
+**Visualize the relation between customers type and readable type using ggplot to see each customer bike preferences and also to know which ride type is used more often**
+
+```{r}
+chart3 <- 
+  df2 %>%
+    group_by(member_casual,rideable_type) %>% 
+    dplyr::summarise(number_of_rides = n(), .groups = "drop") %>% 
+    ggplot(aes(x=member_casual,y=number_of_rides,fill=member_casual))+
+    geom_col(position = "dodge")+
+    scale_y_continuous(labels = scales::comma)+
+    ggtitle("Annual Members vs. Casual Riders\n Total Usage by Bike Types") + 
+  labs(subtitle = "From January 2023-June 2023",
+    x = "Types of Bike",
+    y = "Number of Rides")+
+    facet_grid(cols = vars(rideable_type),             
+      scales = "free_x",
+      space = "free_x")
+
+chart3
+```
+
+
+
+**Visualizing the number of rides each customer type made every month**
+
+```{r}
+chart9 <- df2 %>% 
+  group_by(member_casual, month) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, month)  %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma)+
+  ggtitle("Annual Members vs. Casual Riders\n The Number of Rides by Each Month")+
+  labs(subtitle = "From January 2023-June 2023",
+    x = "Month",
+    y = "Number of Rides")
+
+chart9
+```
+
+**Visualizing the number of rides each customer type made every day**
+
+```{r}
+chart10 <- df2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")+
+  scale_y_continuous(labels = scales::comma)+
+  ggtitle("Annual Members vs. Casual Riders\n The Number of Rides by Each Day")+
+    labs(subtitle = "From January 2023-June 2023",
+    x = "Day",
+    y = "Number of Rides")
+
+
+chart10
+```
+
+
+**Visualizing the number of rides each customer type made at every hour of the day**
+
+```{r}
+chart4 <- df2 %>%
+  group_by(member_casual, hour_start) %>%
+  dplyr::summarise(number_of_rides = n(), .groups = "drop") %>%
+  ggplot(aes(x = hour_start, y = number_of_rides, col = member_casual)) + geom_point (alpha = 0.5, size = 2) +
+  scale_y_continuous(n.breaks = 12, labels = scales::comma) +
+  scale_x_continuous(n.breaks = 24) +
+  geom_smooth()+
+  ggtitle("Annual Members vs. Casual Riders\n Total Number of Rides in Start Riding Hours of the Day")+
+    labs(subtitle = "From January 2023-June 2023",
+    x = "Ride Hours in 24-Hour Format",
+    y = "Number of Rides")
+
+chart4
+```
+
+**Vizualize the total number of rides segmented by days**
+
+```{r}
+chart5 <- df2 %>%
+  group_by(member_casual, hour_start, day_of_week) %>%
+  dplyr::summarise(number_of_rides = n(), .groups = "drop") %>%
+  ggplot(aes(x = hour_start, y = number_of_rides, col = member_casual)) + geom_point (size = 1) +
+  scale_y_continuous(labels = scales::comma) +
+  ggtitle("Annual Members vs. Casual Riders\n Total Number of Rides Segmented by Days of the Week and\n Start Riding Hours of the Day")+
+  labs(subtitle = "From January 2023-June 2023",
+    x = "Ride Hours in 24-Hour Format",
+    y = "Number of Rides")+
+  facet_wrap(.~day_of_week)+
+  geom_smooth()
+
+chart5
+```
+
+**Visualizing the average ride length of the customers types each month,day and hour**
+
+```{r}
+chart6 <- df2 %>% 
+  group_by(member_casual, month) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, month)  %>% 
+  ggplot(aes(x = month, y = average_duration, fill = member_casual))+
+  geom_col(position = "dodge")+
+  ggtitle("Annual Members vs. Casual Riders\n Average Rides Length by Each Month")+
+  labs(subtitle = "From January 2023-June 2023",
+    x = "Month",
+    y = "Average Length of Rides (Minutes)")
+
+
+chart6
+```
+
+```{r}
+chart7 <- df2 %>% 
+  group_by(member_casual, day_of_week) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, day_of_week)  %>% 
+  ggplot(aes(x = day_of_week, y = average_duration, fill = member_casual))+
+  geom_col(position = "dodge")+
+  ggtitle("Annual Members vs. Casual Riders\n Average Rides Length by Each Day")+
+  labs(subtitle = "From January 2023-June 2023",
+    x = "Day of week",
+    y = "Average Length of Rides (Minutes)")
+
+  chart7
+```
+
+```{r}
+chart8 <- df2 %>%
+  group_by(member_casual, hour_start, day_of_week) %>%
+  dplyr::summarise(number_of_rides = n(),
+                   average_duration = mean(ride_length), .groups = "drop") %>%
+  ggplot(aes(x = hour_start, y = average_duration, col = member_casual)) + geom_point (size = 1)+
+  ggtitle("Annual Members vs. Casual Riders\n Average Rides Length by Each Day By Hour")+
+    labs(subtitle = "From January 2023-June 2023",
+    x = "Ride Hours in 24-Hour Format",
+    y = "Average Length of Rides (Minutes)")+
+  facet_wrap(.~day_of_week)+
+  geom_smooth()  
+ 
+
+chart8
+```
+
+### **Part 5: Conclusion**
+
+**Overall Findings**
+
+1. Casual riders have greater mean and median ride lengths than annual members, while having similar minimum and maximum ride lengths. The Annual members have the highest number of rides, compared to casual members. Annual members seems to prefer classic and electric bikes, while casual riders mostly prefer electric bikes. It also showed that the docked bikes are only being used by casual members.
+
+2. The number of rides from both users increases at Chicago from May to June, probably because of warm seasons. It can be seen that the number of rides made by the annual members is more on weekdays while the casual users made more trips on weekends. This probably the annual members subscribes the annual plan as platform to commutes to works while casual members use the service for leisure during weekends.
+
+3. Most popular hour to cycle for both annual members and casual riders are in between 4PM and 6PM, with the peak time for riding bikes being at 5PM. Casual riders have a significantly longer rides than annual members in all days of the week, with Sunday being the longest of the week. 
+
+**Recommendations**
+
+1. Cyclistic could offer incentives to both casual and annual riders, such as:
+
+* Discounts for longer rides
+* Complimentary trips
+* Loyalty programs
+* Special discounts
+
+2. To persuade casual passengers to sign up as annual members, Cyclistic could focus on:
+
+* Discounts or incentives during peak times (4PM to 6PM)
+* Focusing on weekends and months with the longest and most number of rides (May and June)
+
+3. Cyclistic could also invest in research and development for electric bikes, as well as focus on providing electric and classic bikes to casual and annual riders.
+
+**Further Analysis**
+
+1. More data should be collected such as demographic & weather data to enhance the result.
+
+
+
+
+
+
+
