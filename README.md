@@ -31,3 +31,7 @@ For this project, I use 6-months Cyclistic riding data from January to June 2023
 ## Tools
 
 I'm using R to load, clean, transform, analyze and visualize the data.
+
+## RProject HTML link
+
+You may open this link [here](https://raw.githack.com/ZarriefSofea/google-data-analytics-capstone-1/main/Case%20Study%201.html)
